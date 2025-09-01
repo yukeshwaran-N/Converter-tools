@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MP4 to MP3 Converter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    function previewFile() {
+      const input = document.getElementById('video');
+      const videoPreview = document.getElementById('videoPreview');
+
+      if (input.files.length > 0) {
+        const file = input.files[0];
+        const url = URL.createObjectURL(file);
+        videoPreview.src = url;
+        videoPreview.hidden = false;
+      } else {
+        videoPreview.hidden = true;
+        videoPreview.src = "";
+      }
+    }
+
+    function showLoading() {
+      // Show loading bar and hide text
+      document.getElementById("loading").classList.remove("hidden");
+      document.getElementById("loadingBar").classList.remove("hidden");
+      document.getElementById("loadingText").classList.add("hidden");
+
+      // Simulate the progress bar by incrementing width over time
+      let progress = 0;
+      const loadingBar = document.getElementById("loadingBar");
+      const interval = setInterval(() => {
+        progress += 10;
+        loadingBar.style.width = `${progress}%`;
+
+        if (progress >= 100) {
+          clearInterval(interval);
+
+          // Show success toast message after the bar fills
+          setTimeout(() => {
+            showSuccessToast();
+          }, 500); // Delay before showing toast to let the bar fill
+
+          // Show the download button
+          document.getElementById("downloadButton").classList.remove("hidden");
+        }
+      }, 500); // Adjust the speed of the loading bar (in ms)
+    }
+
+    function showSuccessToast() {
+      const toast = document.getElementById("successToast");
+      toast.classList.remove("hidden");
+      toast.classList.add("opacity-100", "scale-100");
+
+      // Hide the toast after 3 seconds
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "scale-95");
+        setTimeout(() => {
+          toast.classList.add("hidden");
+        }, 300); // Delay before hiding it after fade-out
+      }, 3000); // Toast stays visible for 3 seconds
+    }
+
+    // Handle file download
+    function handleDownload() {
+      // Normally, you'd replace the following URL with the actual MP3 file URL after conversion
+      const mp3Url = '/path/to/your/converted-file.mp3'; // Example URL
+      const link = document.createElement('a');
+      link.href = mp3Url;
+      link.download = 'converted-file.mp3';  // Set the default filename
+      link.click();
+    }
+  </script>
+</head>
+<body class="bg-gradient-to-r from-purple-100 to-indigo-200 min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="bg-white p-8 rounded-xl shadow-md max-w-xl w-full text-center">
+    <h1 class="text-3xl font-bold text-purple-800 mb-4">🎥 MP4 to MP3</h1>
+    <form method="POST" action="/convert/mp4-mp3" enctype="multipart/form-data" onsubmit="showLoading()">
+      <input id="video" class="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-purple-600 file:text-white hover:file:bg-purple-700" type="file" name="video" accept="video/mp4" required onchange="previewFile()">
+      <video id="videoPreview" class="mt-4 w-full max-h-64 rounded-lg shadow" controls hidden></video>
+      
+      <!-- Button to trigger conversion -->
+      <button type="submit" class="mt-6 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-6 rounded-full shadow-lg transition">Convert to MP3</button>
+    </form>
+    
+    <!-- Loading Bar -->
+    <div id="loading" class="hidden mt-4 text-purple-700 font-medium">
+      <div class="w-full bg-gray-200 rounded-full h-2.5 mt-4">
+        <div id="loadingBar" class="w-0 h-2.5 bg-purple-600 rounded-full"></div>
+      </div>
+    </div>
+    
+    <!-- Text for loading -->
+    <div id="loadingText" class="hidden mt-4 text-purple-700 font-medium">
+      🎧 Converting... Please wait.
+    </div>
+
+    <!-- Success Toast Notification -->
+    <div id="successToast" class="hidden fixed top-5 right-5 bg-green-500 text-white py-3 px-6 rounded-lg shadow-lg transition-all transform scale-95 opacity-0">
+      <p class="font-medium">🎉 Conversion Complete! MP3 Ready</p>
+    </div>
+
+    <!-- Download Button (Hidden initially) -->
+    <button id="downloadButton" class="hidden mt-6 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-full shadow-lg transition" onclick="handleDownload()">Download MP3</button>
+
+    <a href="/" class="block mt-6 text-purple-600 hover:underline">← Back to Dashboard</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image to PDF Converter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-purple-100 min-h-screen flex items-center justify-center">
+  <div class="bg-white shadow-2xl rounded-xl p-8 max-w-2xl w-full">
+    <h1 class="text-4xl font-bold text-center text-blue-700 mb-6">🖼️ Image to PDF Converter</h1>
+
+    <input type="file" id="fileInput" accept="image/*" class="block w-full text-sm text-gray-700 bg-gray-100 p-3 rounded-md border-2 border-dashed border-blue-400 mb-4 transition hover:border-blue-600 cursor-pointer" multiple/>
+
+    <div id="previewArea" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6"></div>
+
+    <button id="convertBtn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold text-lg hover:bg-blue-700 transition flex justify-center items-center gap-2">
+      <span id="btnText">Convert to PDF</span>
+      <svg id="spinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+      </svg>
+    </button>
+
+    <!-- Loading Bar -->
+    <div id="loading" class="hidden mt-4 text-blue-700 font-medium">
+      <div class="w-full bg-gray-200 rounded-full h-2.5 mt-4">
+        <div id="loadingBar" class="w-0 h-2.5 bg-blue-600 rounded-full"></div>
+      </div>
+    </div>
+
+    <!-- Success Toast Notification -->
+    <div id="successToast" class="hidden fixed top-5 right-5 bg-green-500 text-white py-3 px-6 rounded-lg shadow-lg transition-all transform scale-95 opacity-0">
+      <p class="font-medium">🎉 Conversion Complete! PDF Ready</p>
+    </div>
+
+    <!-- Download Button (Hidden initially, below Convert Button) -->
+    <div id="downloadWrapper" class="hidden mt-4">
+      <button id="downloadButton" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold text-lg shadow-lg transition">
+        Download PDF
+      </button>
+    </div>
+
+    <!-- Convert More Button (Hidden initially) -->
+    <div id="convertMoreWrapper" class="hidden mt-4">
+      <button id="convertMoreButton" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold text-lg shadow-lg transition">
+        Convert More
+      </button>
+    </div>
+
+    <div class="text-center mt-6">
+        <a href="/" class="text-blue-600 hover:underline">← Back to Dashboard</a>
+      </div>
+      
+    <p id="status" class="text-center mt-4 text-gray-700"></p>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const previewArea = document.getElementById('previewArea');
+    const convertBtn = document.getElementById('convertBtn');
+    const status = document.getElementById('status');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const loading = document.getElementById('loading');
+    const loadingBar = document.getElementById('loadingBar');
+    const successToast = document.getElementById('successToast');
+    const downloadButton = document.getElementById('downloadButton');
+    const downloadWrapper = document.getElementById('downloadWrapper');
+    const convertMoreWrapper = document.getElementById('convertMoreWrapper');
+
+    let filesArray = [];
+
+    fileInput.addEventListener('change', () => {
+  const newFiles = Array.from(fileInput.files);
+  const existingNames = new Set(filesArray.map(file => file.name));
+  const filteredNewFiles = newFiles.filter(file => !existingNames.has(file.name));
+
+  filesArray = [...filesArray, ...filteredNewFiles];
+
+  // Clear and re-render preview
+  previewArea.innerHTML = '';
+  filesArray.forEach(showPreview);
+});
+
+
+    function showPreview(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const div = document.createElement('div');
+        div.className = "transform scale-95 opacity-0 animate-fadeIn border rounded shadow p-2 bg-white transition-all duration-300";
+        div.innerHTML = `
+          <img src="${e.target.result}" alt="preview" class="w-full h-32 object-cover rounded-md mb-1">
+          <p class="text-xs text-center text-gray-600 truncate">${file.name}</p>
+        `;
+        previewArea.appendChild(div);
+        setTimeout(() => {
+          div.classList.add("scale-100", "opacity-100");
+        }, 10);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    convertBtn.addEventListener('click', async () => {
+      if (filesArray.length === 0) {
+        status.textContent = "❌ No images selected!";
+        return;
+      }
+
+      const formData = new FormData();
+      filesArray.forEach(file => formData.append('images[]', file));
+
+      status.textContent = "";
+      spinner.classList.remove("hidden");
+      btnText.textContent = "Converting...";
+
+      // Show loading bar
+      loading.classList.remove("hidden");
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        loadingBar.style.width = `${progress}%`;
+
+        if (progress >= 100) {
+          clearInterval(interval);
+        }
+      }, 500);
+
+      try {
+        const response = await fetch('/convert', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = "converted.pdf";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          status.textContent = "✅ Download complete!";
+          showSuccessToast();
+          downloadWrapper.classList.remove("hidden"); // Show the download button wrapper after conversion
+          convertBtn.classList.add("hidden"); // Hide the "Convert to PDF" button
+          convertMoreWrapper.classList.remove("hidden"); // Show the "Convert More" button
+        } else {
+          status.textContent = "❌ Conversion failed!";
+        }
+      } catch (err) {
+        status.textContent = "❌ Something went wrong!";
+      } finally {
+        spinner.classList.add("hidden");
+        btnText.textContent = "Convert to PDF";
+        loading.classList.add("hidden");
+      }
+    });
+
+    function showSuccessToast() {
+      successToast.classList.remove("hidden");
+      successToast.classList.add("opacity-100", "scale-100");
+
+      // Hide the toast after 3 seconds
+      setTimeout(() => {
+        successToast.classList.add("opacity-0", "scale-95");
+        setTimeout(() => {
+          successToast.classList.add("hidden");
+        }, 300);
+      }, 3000);
+    }
+
+    // Handle file download
+    function handleDownload() {
+      const mp3Url = '/path/to/your/converted-file.pdf'; // Example URL for the PDF
+      const link = document.createElement('a');
+      link.href = mp3Url;
+      link.download = 'converted-file.pdf';  // Set the default filename
+      link.click();
+    }
+
+    // Download button click event
+    downloadButton.addEventListener('click', handleDownload);
+
+    // Convert More button click event
+    convertMoreWrapper.addEventListener('click', () => {
+      location.reload(); // Reload the page to start the process again
+    });
+  </script>
+
+  <style>
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: scale(0.95); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.4s ease-in-out forwards;
+    }
+  </style>
+</body>
+</html>
